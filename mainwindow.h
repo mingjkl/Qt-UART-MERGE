@@ -86,6 +86,7 @@ private:
     void com_info_init(void);
     void com_info_ui_reinit(void);
     void com_button_creat(int p);
+    QByteArray QString2Hex(QString str);
 
     QPushButton *com_button[MAX_MERGE_COM_CNT];
     QSerialPort *com[MAX_MERGE_COM_CNT];
@@ -98,6 +99,7 @@ private:
     QPushButton *rx_data_display_clean_button;
     QScrollArea *com_button_sa;
     QPushButton *com_flush_button;
+
 
     struct com_info_s
     {
@@ -124,6 +126,7 @@ private:
     QTextBrowser *rx_data_display;
     QString rx_data_str[MAX_MERGE_COM_CNT];
     QString btn_sel_bc = "#E0EEF9";
+    QByteArray rx_data_str_ba[MAX_MERGE_COM_CNT];
 
 };
 #endif // MAINWINDOW_H

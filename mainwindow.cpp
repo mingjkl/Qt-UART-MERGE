@@ -241,18 +241,39 @@ void MainWindow::com_button_init(void)
                 QObject::connect(com[p], &QSerialPort::readyRead, [=]()
                 {
                     QByteArray astr = com[p]->readAll();
-
+                    qDebug() << "a:" << astr;
                     if(!astr.isNull())
                     {
-                        rx_data_str[p] += astr;
-                        int index = rx_data_str[p].indexOf("\r\n");
-                        if(index != -1)
-                        {
-                            rx_data_display_insert(com_info[p].portNanme, rx_data_str[p], com_info[p].time_display, p);
-                            rx_data_str[p].remove(0, index + 2);
-                            rx_data_display->moveCursor(QTextCursor::End);
 
+                        rx_data_str[p] += astr;
+                        rx_data_str_ba[p] += astr;
+
+                        int index = rx_data_str[p].indexOf("\r\n");
+
+
+                        while(index != -1)
+                        {
+                            QString temp_string = rx_data_str[p].mid(0, index + 2);
+
+                            if(com_info[p].hex_display == true)
+                            {
+                                QByteArray temp_byte = rx_data_str_ba[p].mid(0, index + 2);
+                                temp_byte = temp_byte.toHex(' ');
+                                temp_byte = temp_byte.toUpper();
+                                rx_data_display_insert(com_info[p].portNanme, temp_byte, com_info[p].time_display, p);
+                            }
+                            else
+                            {
+                                rx_data_display_insert(com_info[p].portNanme, temp_string, com_info[p].time_display, p);
+                            }
+
+                            rx_data_str[p].remove(0, index + 2);
+                            rx_data_str_ba[p].remove(0, index + 2);
+                            rx_data_display->moveCursor(QTextCursor::End);
+                            index = rx_data_str[p].indexOf("\r\n");
                         }
+
+
                         astr.clear();
                     }
                 });
@@ -262,6 +283,8 @@ void MainWindow::com_button_init(void)
     }
 
 }
+
+
 
 void MainWindow::rx_data_display_clean_button_init(void)
 {
