@@ -20,6 +20,9 @@
 #include <QTextBrowser>
 #include <QTime>
 #include <QMessageBox>
+#include "com_set.h"
+#include "thread.h"
+#include "barwidget.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -64,10 +67,15 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     void flush_uart_table(void);
+    void com_reopen(void);
+
+    cthread *thread_sc;
 
 
 private:
     Ui::MainWindow *ui;
+    com_set *com_set_widget;
+    barwidget *bar_widget;
     void flush_com_button_init(void);
     void com_button_init(void);
     void com_info_sim(void);
@@ -86,10 +94,11 @@ private:
     void com_info_init(void);
     void com_info_ui_reinit(void);
     void com_button_creat(int p);
+    void rx_data_barwidget_button_init(void);
     QByteArray QString2Hex(QString str);
 
     QPushButton *com_button[MAX_MERGE_COM_CNT];
-    QSerialPort *com[MAX_MERGE_COM_CNT];
+
     QPushButton *com_hex_button[MAX_MERGE_COM_CNT];
     QPushButton *com_send_button[MAX_MERGE_COM_CNT];
     QPushButton *com_set_button[MAX_MERGE_COM_CNT];
@@ -99,26 +108,10 @@ private:
     QPushButton *rx_data_display_clean_button;
     QScrollArea *com_button_sa;
     QPushButton *com_flush_button;
+    QPushButton *bar_widget_button;
 
 
-    struct com_info_s
-    {
-        QString portNanme;
-        QString description;
-        bool hasVendorIdentifier;
-        QString vendorIdentifier;
-        bool hasproductIdentifier;
-        QString productIdentifier;
-        QString manufacturer;
-        QString serialNumber;
-        bool online;
-        bool open;
-        QString open_status_str;
-        QString rename;
-        bool time_display;
-        bool hex_display;
 
-    } com_info[MAX_MERGE_COM_CNT];
 
     int active_com_cnt = 0;
 

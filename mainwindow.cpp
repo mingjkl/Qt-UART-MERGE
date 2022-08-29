@@ -1,5 +1,28 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "barwidget.h"
+
+
+struct com_info_s
+{
+    QString portNanme;
+    QString description;
+    bool hasVendorIdentifier;
+    QString vendorIdentifier;
+    bool hasproductIdentifier;
+    QString productIdentifier;
+    QString manufacturer;
+    QString serialNumber;
+    bool online;
+    bool open;
+    QString open_status_str;
+    QString rename;
+    bool time_display;
+    bool hex_display;
+
+} com_info[MAX_MERGE_COM_CNT];
+
+QSerialPort *com[MAX_MERGE_COM_CNT];
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -9,16 +32,18 @@ MainWindow::MainWindow(QWidget *parent)
     this->setFixedHeight(MAIN_WINDOIW_HEIGHT);
     this->setFixedWidth(MAIN_WINDOIW_WIDTH);
 
-
-
     flush_uart_table();
-//    com_info_sim();
-
 
     rx_data_display_init();
     com_all_close_button_init();
     rx_data_display_clean_button_init();
     flush_com_button_init();
+    rx_data_barwidget_button_init();
+//    thread_sc = new cthread();
+//    thread_sc->start();
+
+    bar_widget = new barwidget;
+
 }
 
 MainWindow::~MainWindow()
@@ -26,6 +51,8 @@ MainWindow::~MainWindow()
     com_all_close();
     delete ui;
 }
+
+
 
 QString rx_data_str_backcolor[20] =
 {
@@ -260,22 +287,58 @@ void MainWindow::com_button_init(void)
                                 QByteArray temp_byte = rx_data_str_ba[p].mid(0, index + 2);
                                 temp_byte = temp_byte.toHex(' ');
                                 temp_byte = temp_byte.toUpper();
-                                rx_data_display_insert(com_info[p].portNanme, temp_byte, com_info[p].time_display, p);
+                                rx_data_display_insert(com_info[p].rename, temp_byte, com_info[p].time_display, p);
                             }
                             else
                             {
-                                rx_data_display_insert(com_info[p].portNanme, temp_string, com_info[p].time_display, p);
+                                rx_data_display_insert(com_info[p].rename, temp_string, com_info[p].time_display, p);
                             }
 
                             rx_data_str[p].remove(0, index + 2);
                             rx_data_str_ba[p].remove(0, index + 2);
                             rx_data_display->moveCursor(QTextCursor::End);
                             index = rx_data_str[p].indexOf("\r\n");
+
+                            if(temp_string.startsWith("BAR-2-2-80-"))
+                            {
+                                qDebug() << "start" << temp_string;
+                                QString bar_hex_str = temp_string.mid(11, 80);
+                                qDebug() << bar_hex_str;
+                                QString bar_hex_str_temp;
+                                for(int p3 = 0; p3 < 40; p3++)
+                                {
+                                    bar_hex_str_temp = bar_hex_str.mid(p3 * 2, 2);
+                                    qDebug() << p3 << bar_hex_str_temp << bar_hex_str_temp.toInt(0, 16);
+                                    bar_widget->pb[p3]->setValue(bar_hex_str_temp.toInt(0, 16));
+
+                                }
+                            }
+
+                            if(temp_string.startsWith("BAC-2-2-80-"))
+                            {
+                                qDebug() << "start" << temp_string;
+                                QString bar_hex_str = temp_string.mid(11, 80);
+                                qDebug() << bar_hex_str;
+                                QString bar_hex_str_temp;
+                                for(int p3 = 0; p3 < 40; p3++)
+                                {
+                                    bar_hex_str_temp = bar_hex_str.mid(p3 * 2, 2);
+                                    qDebug() << p3 << bar_hex_str_temp << bar_hex_str_temp.toInt(0, 16);
+                                    bar_widget->pb_c[p3]->setValue(bar_hex_str_temp.toInt(0, 16));
+
+                                }
+                            }
+
                         }
 
 
                         astr.clear();
                     }
+                });
+
+                QObject::connect(com[p], &QSerialPort::aboutToClose, [=]()
+                {
+                    qDebug() << "com close" << p;
                 });
             }
         });
@@ -284,7 +347,21 @@ void MainWindow::com_button_init(void)
 
 }
 
+void MainWindow::rx_data_barwidget_button_init(void)
+{
+    bar_widget_button = new QPushButton;
+    bar_widget_button->setParent(this);
+    bar_widget_button->setFixedHeight(BTN_ALL_CLOSE_FIX_HEIGHT);
+    bar_widget_button->setFixedWidth(BTN_ALL_CLOSE_FIX_WIDTH);
+    bar_widget_button->move(BTN_ALL_CLOSE_BASE_X - (BTN_ALL_CLOSE_FIX_WIDTH + 10) * 3, BTN_ALL_CLOSE_BASE_Y);
+    bar_widget_button->setText("Bar");
+    bar_widget_button->show();
+    connect(bar_widget_button, &QPushButton::clicked, [=]()
+    {
 
+        bar_widget->show();
+    });
+}
 
 void MainWindow::rx_data_display_clean_button_init(void)
 {
@@ -448,6 +525,28 @@ void MainWindow::com_set_button_init(void)
         {
             com_set_button[p]->hide();
         }
+
+        connect(com_set_button[p], &QPushButton::clicked, [=]()
+        {
+            com_set_widget = new com_set;
+
+            com_set_widget->com_set_widget_show();
+
+            com_set_widget->com_set_info_display("PortNanme: " + com_info[p].portNanme);
+            com_set_widget->com_set_info_display("Manufacturer: " + com_info[p].manufacturer);
+            com_set_widget->com_set_info_display("SserialNumber: " + com_info[p].serialNumber);
+            if(com_info->hasVendorIdentifier == true)
+            {
+                qDebug() << com_info->vendorIdentifier;
+                com_set_widget->com_set_info_display("VendorIdentifier: " + com_info[p].vendorIdentifier);
+            }
+            if(com_info->hasproductIdentifier == true)
+            {
+                com_set_widget->com_set_info_display("ProductIdentifier: " + com_info[p].productIdentifier);
+            }
+            com_set_widget->com_set_info_display("Description: " + com_info[p].description);
+
+        });
     }
 }
 
@@ -464,8 +563,9 @@ void MainWindow::flush_com_button_init(void)
 
     connect(com_flush_button, &QPushButton::clicked, [=]()
     {
-        qDebug() << "restart";
-        qApp->exit(1047);
+//        qDebug() << "restart";
+//        com_all_close();
+//        qApp->exit(1047);
 
     });
 
@@ -517,6 +617,34 @@ void MainWindow::com_info_init(void)
     active_com_cnt = 0;
 }
 
+void com_reopen(void)
+{
+    for(int p = 0; p < MAX_MERGE_COM_CNT; p++)
+    {
+        if((com_info->open == true) && (com[p]->isOpen() == false))
+        {
+            com[p]->reset();
+            com[p] = new QSerialPort();
+            com[p]->setPortName(com_info[p].portNanme);
+            com[p]->setBaudRate(QSerialPort::Baud115200);
+            com[p]->setDataBits(QSerialPort::Data8);
+            com[p]->setStopBits(QSerialPort::OneStop);
+            com[p]->setParity(QSerialPort::NoParity);
+            com[p]->setFlowControl(QSerialPort::NoFlowControl);
+
+            if(com[p]->open(QIODevice::ReadWrite))
+            {
+                qDebug() << com_info[p].portNanme << "reopen";
+            }
+            else
+            {
+                qDebug() << com_info[p].portNanme << "reopen fail";
+            }
+        }
+    }
+
+}
+
 void MainWindow::com_info_ui_reinit(void)
 {
     for(int p = 0; p < MAX_MERGE_COM_CNT; p++)
@@ -564,16 +692,33 @@ void MainWindow::flush_uart_table(void)
 
         com_info[active_com_cnt].rename = info.portName();
 
-//        json_obj_info.insert("portName", info.portName());
-//        json_obj_info.insert("description", info.description());
-//        json_obj_info.insert("hasVendorIdentifier", info.hasVendorIdentifier());
-//        json_obj_info.insert("manufacturer", info.manufacturer());
-//        json_obj_info.insert("serialNumber", info.serialNumber());
-//        json_obj_info.insert("vendorIdentifier", info.vendorIdentifier());
-//        json_obj_info.insert("productIdentifier", info.productIdentifier());
-//        json_obj_info.insert("hasProductIdentifier", info.hasProductIdentifier());
+        if(com_info[active_com_cnt].rename == QString("COM11"))
+        {
+            com_info[active_com_cnt].rename = QString("RX-NET");
+        }
+        if(com_info[active_com_cnt].rename == QString("COM9"))
+        {
+            com_info[active_com_cnt].rename = QString("RX-APP");
+        }
+        if(com_info[active_com_cnt].rename == QString("COM7"))
+        {
+            com_info[active_com_cnt].rename = QString("TX-NET");
+        }
+        if(com_info[active_com_cnt].rename == QString("COM6"))
+        {
+            com_info[active_com_cnt].rename = QString("TX-APP");
+        }
 
-//        com_json.insert(info.portName(), json_obj_info);
+        json_obj_info.insert("portName", info.portName());
+        json_obj_info.insert("description", info.description());
+        json_obj_info.insert("hasVendorIdentifier", info.hasVendorIdentifier());
+        json_obj_info.insert("manufacturer", info.manufacturer());
+        json_obj_info.insert("serialNumber", info.serialNumber());
+        json_obj_info.insert("vendorIdentifier", info.vendorIdentifier());
+        json_obj_info.insert("productIdentifier", info.productIdentifier());
+        json_obj_info.insert("hasProductIdentifier", info.hasProductIdentifier());
+
+        com_json.insert(info.portName(), json_obj_info);
 
         active_com_cnt++;
     }
@@ -585,12 +730,12 @@ void MainWindow::flush_uart_table(void)
     com_set_button_init();
     com_rx_str_color_mark_init();
 
-//    QJsonDocument doc(com_json);
-//    QByteArray json = doc.toJson();
-//    QFile file(".//com_info.json");
-//    file.open(QFile::WriteOnly);
-//    file.write(json);
-//    file.close();
+    QJsonDocument doc(com_json);
+    QByteArray json = doc.toJson();
+    QFile file(".//com_info.json");
+    file.open(QFile::WriteOnly);
+    file.write(json);
+    file.close();
 
 //    file.open(QFile::ReadOnly);
 //    QByteArray json_read = file.readAll();
